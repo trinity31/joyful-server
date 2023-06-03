@@ -1,0 +1,28 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'joyful-server
+
+  Sample SAM Template for joyful-server
+
+  '
+Globals:
+  Function:
+    Timeout: 60
+    MemorySize: 128
+Resources:
+  CreateRecipeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: CreateRecipeFunction
+      Handler: app.lambda_handler
+      Runtime: python3.9
+    Metadata:
+      SamResourceId: CreateRecipeFunction
+  CreateImageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: CreateImageFunction
+      Handler: app.lambda_handler
+      Runtime: python3.9
+    Metadata:
+      SamResourceId: CreateImageFunction
