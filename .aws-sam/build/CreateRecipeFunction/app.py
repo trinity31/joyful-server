@@ -36,66 +36,95 @@ def translate_text_with_line_breaks(text, target_language):
 
 
 def lambda_handler(event, context):
-    openai.api_key = os.environ.get("OPENAI_KEY")
+    try:
+        openai.api_key = os.environ.get("OPENAI_KEY")
 
-    body = json.loads(event["body"])
+        body = json.loads(event["body"])
 
-    ingredients = body["ingredients"]
-    quantity = body["quantity"]
-    cuisine = body["cuisine"]
-    mealtype = body["mealtype"]
-    locale = body["locale"]
+        ingredients = body["ingredients"]
+        quantity = body["quantity"]
+        cuisine = body["cuisine"]
+        mealtype = body["mealtype"]
+        locale = body["locale"]
+        special = body["special"]
 
-    intro = "I want you to act as my personal vegan chef who can suggest delicious recipes which are nutritionally beneficial but also easy to cook at home."
+        intro = "I want you to act as my personal vegan chef who can suggest delicious recipes which are nutritionally beneficial but also easy to cook at home."
 
-    prompt = f"""
-            {intro}
-            Answer in markdown format. You should only reply
-            with the recipes you recommend, and nothing else. Do not write explanations.
-            The title of the recipe does not have to include cuisine type, meal type, and all the ingredients.
-            The recipe must be vegan and must include the following ingredients: {ingredients}
-            The recipe must indicate the amount of each ingredient for serving {quantity}. 
-            Describe the detailed process to make the recipe.
-            The title should be in h1 format. 
-            {cuisine}.  {mealtype}
-            Answer in English.
-            """
+        prompt = f"""
+                {intro}
+                Special request: {special}.
+                Answer in markdown format. You should only reply
+                with the recipes you recommend, and nothing else. Do not write explanations.
+                The title of the recipe does not have to include cuisine type, meal type, and all the ingredients.
+                The recipe must be vegan and must include the following ingredients: {ingredients}
+                The recipe must indicate the amount of each ingredient for serving {quantity}. 
+                Describe the detailed process to make the recipe.
+                The title should be in h1 format. 
+                {cuisine}.  {mealtype}
+                Answer in English.
+                """
 
-    # print(prompt)
+        print(prompt)
 
-    response = openai.Completion.create(
-        model="text-davinci-003", prompt=prompt, temperature=0.7, max_tokens=2000
-    )
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            # prompt=prompt,
+            messages=[
+                {"role": "system", "content": "You are a vegan chef."},
+                {"role": "user", "content": prompt},
+            ],
+        )
 
-    result_recipe = response["choices"][0]["text"]
+        result = response["choices"][0]
+        # print(result)
+        result_recipe = result.message.content
 
-    import re
+        import re
 
-    match = re.search(r"^#\s(.*)$", result_recipe, re.MULTILINE)
-    recipe_title = match.group(1) if match else None
+        match = re.search(r"^#\s(.*)$", result_recipe, re.MULTILINE)
+        recipe_title = match.group(1) if match else None
 
-    # print(result_recipe)
-    # print(recipe_title)
+        # print(result_recipe)
+        # print(recipe_title)
 
-    result_recipe_translated = (
-        translate_text_with_line_breaks(result_recipe, locale)
-        if locale != "en"
-        else result_recipe
-    )
+        result_recipe_translated = (
+            translate_text_with_line_breaks(result_recipe, locale)
+            if locale != "en"
+            else result_recipe
+        )
 
-    # print(result_recipe_translated)
+        print(result_recipe_translated)
 
-    # Provide the response
-    response_data = {
-        "result": "Success",
-        "data": {"recipe": result_recipe_translated, "title": recipe_title},
-    }
+        # Provide the response
+        response_data = {
+            "result": "Success",
+            "data": {"recipe": result_recipe_translated, "title": recipe_title},
+        }
 
-    return {
-        "statusCode": 200,
-        "headers": {
-            "Access-Control-Allow-Origin": "*",  # Or the specific origin you want to allow
-            "Access-Control-Allow-Credentials": True,
-        },
-        "body": json.dumps(response_data),
-    }
+        print(response_data)
+
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",  # Or the specific origin you want to allow
+                "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Credentials": True,
+            },
+            "body": json.dumps(response_data),
+        }
+    except Exception as e:
+        # Print the error message and traceback
+        print(f"An error occurred: {str(e)}")
+
+        # Return an error response
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Credentials": True,
+            },
+            "body": json.dumps({"result": "Error", "message": str(e)}),
+        }
